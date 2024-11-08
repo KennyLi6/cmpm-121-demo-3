@@ -75,6 +75,10 @@ const playerPoints: Coin[] = [];
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!; // element `statusPanel` is defined in index.html
 statusPanel.innerHTML = "No points yet...";
 
+function updateStatusPanel() {
+  statusPanel.innerHTML = `${playerPoints.length} points accumulated`;
+}
+
 function spawnCache(cell: Cell) {
   const bounds = GEO_BOARD.getCellBounds(cell);
   // Add a rectangle to the map to represent the cache
@@ -103,15 +107,19 @@ function spawnCache(cell: Cell) {
                   <button id="collect">collect</button>
                   <button id="deposit">deposit</button>`;
 
+    function updateCache() {
+      popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
+        .cacheDetail.coins.length.toString();
+    }
+
     // Clicking the button decrements the cache's value and increments the player's points
     popupDiv
       .querySelector<HTMLButtonElement>("#collect")!
       .addEventListener("click", () => {
         if (cache.cacheDetail.coins.length > 0) {
           playerPoints.push(cache.cacheDetail.coins.pop());
-          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-            .cacheDetail.coins.length.toString();
-          statusPanel.innerHTML = `${playerPoints.length} points accumulated`;
+          updateCache();
+          updateStatusPanel();
           cache.bindPopup();
         }
       });
@@ -122,9 +130,8 @@ function spawnCache(cell: Cell) {
       .addEventListener("click", () => {
         if (playerPoints.length > 0) {
           cache.cacheDetail.coins.push(playerPoints.pop());
-          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-            .cacheDetail.coins.length.toString();
-          statusPanel.innerHTML = `${playerPoints.length} points accumulated`;
+          updateCache();
+          updateStatusPanel();
         }
       });
 
