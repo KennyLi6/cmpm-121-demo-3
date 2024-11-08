@@ -110,14 +110,33 @@ function spawnCache(cell: Cell) {
     const popupDiv = document.createElement("div");
     const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
     const cacheLng = (cell.j * TILE_DEGREES).toFixed(4);
+    let coinAmount = cache.cacheDetail.coins.length;
+    let topCoin = cache.cacheDetail.coins[coinAmount - 1];
     popupDiv.innerHTML = `
-                  <div>There is a cache here at "${cacheLat},${cacheLng}". It has value <span id="value">${cache.cacheDetail.coins.length}</span>.</div>
+                  <div>
+                    There is a cache here at "${cacheLat},${cacheLng}". It has <span id="value">${coinAmount}</span> coin(s).
+                    <br><span id="topCoinText">${
+      coinAmount > 0
+        ? `You can take coin ${topCoin.cell.i}:${topCoin.cell.j}#${topCoin.serial}.`
+        : ``
+    }</span>
+                  </div>
                   <button id="collect">collect</button>
                   <button id="deposit">deposit</button>`;
 
     function updateCache() {
       popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
         .cacheDetail.coins.length.toString();
+      coinAmount = cache.cacheDetail.coins.length;
+      if (coinAmount > 0) {
+        topCoin = cache.cacheDetail.coins[coinAmount - 1];
+        popupDiv.querySelector<HTMLSpanElement>(
+          "#topCoinText",
+        )!.innerHTML =
+          `You can take coin ${topCoin.cell.i}:${topCoin.cell.j}#${topCoin.serial}.`;
+      } else {
+        popupDiv.querySelector<HTMLSpanElement>("#topCoinText")!.innerHTML = ``;
+      }
     }
 
     // Clicking the button decrements the cache's value and increments the player's points
