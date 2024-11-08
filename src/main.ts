@@ -24,10 +24,8 @@ interface Coin {
 /*
 Interfaces, Functions, and Events for later
 
-
 function collect(coin: Coin, cell: Cell) {
     if (!cell) { return; }
-
 }
 
 function deposit(coin: Coin, cell: Cell) {
@@ -35,15 +33,14 @@ function deposit(coin: Coin, cell: Cell) {
 }
 
 const updateCache = new CustomEvent("cache-updated");
-const playerMoved = new CustomEvent("player-moved", {
-    detail: {movement}
-});
+
 const inventoryChanged = new CustomEvent("player-inventory-changed", {
     detail: {item}
 })
 */
 
 const STARTING_POINT = leaflet.latLng(36.98949379578401, -122.06277128548504);
+let playerLocation = STARTING_POINT;
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
@@ -87,12 +84,14 @@ function updateStatusPanel() {
   }
 }
 
+let caches: leaflet.rectangle[] = [];
+
 function spawnCache(cell: Cell) {
   const bounds = GEO_BOARD.getCellBounds(cell);
   // Add a rectangle to the map to represent the cache
   const cache = leaflet.rectangle(bounds);
   cache.addTo(map);
-
+  caches.push(cache);
   // Handle interactions with the cache
   cache.bindPopup(() => {
     // Each cache has a random point value, mutable by the player
@@ -167,11 +166,14 @@ function spawnCache(cell: Cell) {
 }
 
 const GEO_BOARD = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
-const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(STARTING_POINT);
+generateNeighborhood(STARTING_POINT);
 
-for (const cell of NEIGHBORHOOD_CELLS) {
-  if (luck([cell.i, cell.j].toString()) < CACHE_SPAWN_PROBABILITY) {
-    spawnCache(cell);
+function generateNeighborhood(point: leaflet.LatLng) {
+  const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(point);
+  for (const cell of NEIGHBORHOOD_CELLS) {
+    if (luck([cell.i, cell.j].toString()) < CACHE_SPAWN_PROBABILITY) {
+      spawnCache(cell);
+    }
   }
 }
 
@@ -184,12 +186,36 @@ controlPanel.addEventListener("click", (event) => {
   }
 });
 
-function movePlayer(direction: string) {
+function movePlayer(direction: "north" | "south" | "west" | "east") {
   let { lat, lng } = playerMarker.getLatLng();
+  clearCaches();
   if (direction === "north") lat += TILE_DEGREES;
   if (direction === "south") lat -= TILE_DEGREES;
   if (direction === "east") lng += TILE_DEGREES;
   if (direction === "west") lng -= TILE_DEGREES;
   playerMarker.setLatLng([lat, lng]);
   map.panTo([lat, lng]);
+  playerMoved(lat, lng);
 }
+
+function clearCaches() {
+  for (const cache of caches) {
+    map.removeLayer(cache);
+  }
+  caches = [];
+}
+
+function playerMoved(lat: number, lng: number) {
+  const event = new CustomEvent("player-moved", {
+    detail: { lat, lng },
+  });
+  document.dispatchEvent(event);
+}
+
+document.addEventListener("player-moved", (event: Event) => {
+  const customEvent = event as CustomEvent;
+  const { lat, lng } = customEvent.detail;
+  playerLocation = leaflet.latLng(lat, lng);
+  generateNeighborhood(playerLocation);
+  playerMarker.addTo(map);
+});
