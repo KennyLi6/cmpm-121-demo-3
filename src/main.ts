@@ -168,17 +168,16 @@ function spawnCache(cell: Cell) {
 
 const GEO_BOARD = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
 const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(STARTING_POINT);
-let count = 0;
+
 for (const cell of NEIGHBORHOOD_CELLS) {
-  count++;
   if (luck([cell.i, cell.j].toString()) < CACHE_SPAWN_PROBABILITY) {
     spawnCache(cell);
   }
 }
 
-const controlPanel = document.querySelector<HTMLDivElement>("#controlPanel");
+const controlPanel = document.querySelector<HTMLDivElement>("#controlPanel")!;
 // thank you to KeatonShawhan for this idea
-controlPanel?.addEventListener("click", (event) => {
+controlPanel.addEventListener("click", (event) => {
   const direction = (event.target as HTMLElement).id; //gets N,S,W,E
   if (["north", "south", "west", "east"].includes(direction)) {
     movePlayer(direction as "north" | "south" | "west" | "east");
@@ -187,22 +186,10 @@ controlPanel?.addEventListener("click", (event) => {
 
 function movePlayer(direction: string) {
   let { lat, lng } = playerMarker.getLatLng();
-  switch (direction) {
-    case "north":
-      lat += TILE_DEGREES;
-      break;
-    case "south":
-      lat -= TILE_DEGREES;
-      break;
-    case "east":
-      lng += TILE_DEGREES;
-      break;
-    case "west":
-      lng -= TILE_DEGREES;
-      break;
-    default:
-      throw new Error("you shouldn't get here!\n");
-  }
+  if (direction === "north") lat += TILE_DEGREES;
+  if (direction === "south") lat -= TILE_DEGREES;
+  if (direction === "east") lng += TILE_DEGREES;
+  if (direction === "west") lng -= TILE_DEGREES;
   playerMarker.setLatLng([lat, lng]);
   map.panTo([lat, lng]);
 }
