@@ -1,6 +1,6 @@
 import leaflet from "leaflet";
 
-interface Cell {
+export interface Cell {
   readonly i: number;
   readonly j: number;
 }
@@ -20,17 +20,17 @@ export class Board {
   private getCanonicalCell(cell: Cell): Cell {
     const { i, j } = cell;
     const key = [i, j].toString();
-    const cellCheck = this.knownCells.get(key);
-    if (!cellCheck) {
-      this.knownCells.set(key, cell);
+    if (!this.knownCells.has(key)) {
+      this.knownCells.set(key, cell); //took this idea from KeatonShawhan
     }
-    return cellCheck!;
+    return this.knownCells.get(key)!;
   }
 
+  //took division idea from Justin-Lam
   getCellForPoint(point: leaflet.LatLng): Cell {
     const cell: Cell = {
-      i: point.lat,
-      j: point.lng,
+      i: Math.trunc(point.lat / this.tileWidth),
+      j: Math.trunc(point.lng / this.tileWidth),
     };
     return this.getCanonicalCell(cell);
   }

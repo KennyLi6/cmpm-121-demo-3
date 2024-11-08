@@ -4,7 +4,8 @@ import "leaflet/dist/leaflet.css";
 import "./style.css";
 import luck from "./luck.ts";
 import "./leafletWorkaround.ts";
-//import { Board } from "./board.ts";
+import { Board } from "./board.ts";
+import { Cell } from "./board.ts";
 
 const APP_NAME = "Geocoin Carrier";
 const APP = document.querySelector<HTMLDivElement>("#app")!;
@@ -40,8 +41,7 @@ const inventoryChanged = new CustomEvent("player-inventory-changed", {
 })
 */
 
-const OAKES_CLASSROOM = leaflet.latLng(36.98949379578401, -122.06277128548504);
-//const MAP_ORIGIN = leaflet.latLng(0, 0);
+const STARTING_POINT = leaflet.latLng(36.98949379578401, -122.06277128548504);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
@@ -49,7 +49,7 @@ const NEIGHBORHOOD_SIZE = 8;
 const CACHE_SPAWN_PROBABILITY = 0.1;
 
 const map = leaflet.map(document.getElementById("map")!, {
-  center: OAKES_CLASSROOM,
+  center: STARTING_POINT,
   zoom: GAMEPLAY_ZOOM_LEVEL,
   minZoom: GAMEPLAY_ZOOM_LEVEL,
   maxZoom: GAMEPLAY_ZOOM_LEVEL,
@@ -65,7 +65,7 @@ leaflet
   })
   .addTo(map);
 
-const playerMarker = leaflet.marker(OAKES_CLASSROOM);
+const playerMarker = leaflet.marker(STARTING_POINT);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 
@@ -73,17 +73,8 @@ let playerPoints = 0;
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!; // element `statusPanel` is defined in index.html
 statusPanel.innerHTML = "No points yet...";
 
-function spawnCache(i: number, j: number) {
-  // Convert cell numbers into lat/lng bounds
-  const origin = OAKES_CLASSROOM;
-  const bounds = leaflet.latLngBounds([
-    [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
-    [
-      origin.lat + (i + 1) * TILE_DEGREES,
-      origin.lng + (j + 1) * TILE_DEGREES,
-    ],
-  ]);
-
+function spawnCache(cell: Cell) {
+  const bounds = GEO_BOARD.getCellBounds(cell);
   // Add a rectangle to the map to represent the cache
   const cache = leaflet.rectangle(bounds);
   cache.addTo(map);
@@ -92,7 +83,7 @@ function spawnCache(i: number, j: number) {
   cache.bindPopup(() => {
     // Each cache has a random point value, mutable by the player
     const pointValue = Math.floor(
-      luck([i, j, "initialValue"].toString()) * 100,
+      luck([cell.i, cell.j, "initialValue"].toString()) * 100,
     );
     const customDetails: Cache = {
       coins: pointValue,
@@ -100,8 +91,10 @@ function spawnCache(i: number, j: number) {
     cache.cacheDetail = customDetails;
     // The popup offers a description and button
     const popupDiv = document.createElement("div");
+    const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
+    const cacheLng = (cell.j * TILE_DEGREES).toFixed(4);
     popupDiv.innerHTML = `
-                  <div>There is a cache here at "${i},${j}". It has value <span id="value">${cache.cacheDetail.coins}</span>.</div>
+                  <div>There is a cache here at "${cacheLat},${cacheLng}". It has value <span id="value">${cache.cacheDetail.coins}</span>.</div>
                   <button id="collect">collect</button>
                   <button id="deposit">deposit</button>`;
 
@@ -111,9 +104,8 @@ function spawnCache(i: number, j: number) {
       .addEventListener("click", () => {
         if (cache.cacheDetail.coins > 0) {
           cache.cacheDetail.coins--;
-          popupDiv.querySelector<HTMLSpanElement>(
-            "#value",
-          )!.innerHTML = cache.cacheDetail.coins.toString();
+          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
+            .cacheDetail.coins.toString();
           playerPoints++;
           statusPanel.innerHTML = `${playerPoints} points accumulated`;
           cache.bindPopup();
@@ -127,9 +119,8 @@ function spawnCache(i: number, j: number) {
         if (playerPoints > 0) {
           playerPoints--;
           cache.cacheDetail.coins++;
-          popupDiv.querySelector<HTMLSpanElement>(
-            "#value",
-          )!.innerHTML = cache.cacheDetail.coins.toString();
+          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
+            .cacheDetail.coins.toString();
           statusPanel.innerHTML = `${playerPoints} points accumulated`;
         }
       });
@@ -138,12 +129,13 @@ function spawnCache(i: number, j: number) {
   });
 }
 
-for (let i = -NEIGHBORHOOD_SIZE; i < NEIGHBORHOOD_SIZE; i++) {
-  for (let j = -NEIGHBORHOOD_SIZE; j < NEIGHBORHOOD_SIZE; j++) {
-    // If location i,j is lucky enough, spawn a cache!
-    if (luck([i, j].toString()) < CACHE_SPAWN_PROBABILITY) {
-      spawnCache(i, j);
-    }
+const GEO_BOARD = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
+const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(STARTING_POINT);
+let count = 0;
+for (const cell of NEIGHBORHOOD_CELLS) {
+  count++;
+  if (luck([cell.i, cell.j].toString()) < CACHE_SPAWN_PROBABILITY) {
+    spawnCache(cell);
   }
 }
 
