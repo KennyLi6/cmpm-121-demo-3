@@ -13,15 +13,17 @@ const APP = document.querySelector<HTMLDivElement>("#app")!;
 document.title = APP_NAME;
 
 interface Cache {
-  coins: number;
+  coins: Coin[];
 }
 
-/*
-Interfaces, Functions, and Events for later
 interface Coin {
   cell: Cell;
   serial: number;
 }
+
+/*
+Interfaces, Functions, and Events for later
+
 
 function collect(coin: Coin, cell: Cell) {
     if (!cell) { return; }
@@ -69,7 +71,7 @@ const playerMarker = leaflet.marker(STARTING_POINT);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 
-let playerPoints = 0;
+const playerPoints: Coin[] = [];
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!; // element `statusPanel` is defined in index.html
 statusPanel.innerHTML = "No points yet...";
 
@@ -85,16 +87,19 @@ function spawnCache(cell: Cell) {
     const pointValue = Math.floor(
       luck([cell.i, cell.j, "initialValue"].toString()) * 100,
     );
-    const customDetails: Cache = {
-      coins: pointValue,
-    };
+
+    const customDetails: Cache = { coins: [] };
+    for (let i = 0; i < pointValue; i++) {
+      customDetails.coins.push({ cell: cell, serial: i });
+    }
+
     cache.cacheDetail = customDetails;
     // The popup offers a description and button
     const popupDiv = document.createElement("div");
     const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
     const cacheLng = (cell.j * TILE_DEGREES).toFixed(4);
     popupDiv.innerHTML = `
-                  <div>There is a cache here at "${cacheLat},${cacheLng}". It has value <span id="value">${cache.cacheDetail.coins}</span>.</div>
+                  <div>There is a cache here at "${cacheLat},${cacheLng}". It has value <span id="value">${cache.cacheDetail.coins.length}</span>.</div>
                   <button id="collect">collect</button>
                   <button id="deposit">deposit</button>`;
 
@@ -102,12 +107,11 @@ function spawnCache(cell: Cell) {
     popupDiv
       .querySelector<HTMLButtonElement>("#collect")!
       .addEventListener("click", () => {
-        if (cache.cacheDetail.coins > 0) {
-          cache.cacheDetail.coins--;
+        if (cache.cacheDetail.coins.length > 0) {
+          playerPoints.push(cache.cacheDetail.coins.pop());
           popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-            .cacheDetail.coins.toString();
-          playerPoints++;
-          statusPanel.innerHTML = `${playerPoints} points accumulated`;
+            .cacheDetail.coins.length.toString();
+          statusPanel.innerHTML = `${playerPoints.length} points accumulated`;
           cache.bindPopup();
         }
       });
@@ -116,12 +120,11 @@ function spawnCache(cell: Cell) {
     popupDiv
       .querySelector<HTMLButtonElement>("#deposit")!
       .addEventListener("click", () => {
-        if (playerPoints > 0) {
-          playerPoints--;
-          cache.cacheDetail.coins++;
+        if (playerPoints.length > 0) {
+          cache.cacheDetail.coins.push(playerPoints.pop());
           popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-            .cacheDetail.coins.toString();
-          statusPanel.innerHTML = `${playerPoints} points accumulated`;
+            .cacheDetail.coins.length.toString();
+          statusPanel.innerHTML = `${playerPoints.length} points accumulated`;
         }
       });
 
