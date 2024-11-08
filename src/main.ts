@@ -73,10 +73,18 @@ playerMarker.addTo(map);
 
 const playerPoints: Coin[] = [];
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!; // element `statusPanel` is defined in index.html
-statusPanel.innerHTML = "No points yet...";
+statusPanel.innerHTML = "No coins yet...";
 
 function updateStatusPanel() {
   statusPanel.innerHTML = `${playerPoints.length} points accumulated`;
+  if (playerPoints.length > 0) {
+    statusPanel.innerHTML += `<br>Coins in inventory:`;
+  }
+  for (const coin of playerPoints) {
+    statusPanel.innerHTML += `
+      <br>${coin.cell.i}:${coin.cell.j}#${coin.serial}.
+      `;
+  }
 }
 
 function spawnCache(cell: Cell) {
