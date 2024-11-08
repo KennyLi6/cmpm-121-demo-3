@@ -37,6 +37,8 @@ h1 {
 
 #controlPanel {
   padding: 1rem;
+  display: flex;
+  justify-content: center;
 }
 
 #statusPanel {

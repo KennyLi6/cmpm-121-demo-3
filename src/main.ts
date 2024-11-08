@@ -8,7 +8,7 @@ import { Board } from "./board.ts";
 import { Cell } from "./board.ts";
 
 const APP_NAME = "Geocoin Carrier";
-const APP = document.querySelector<HTMLDivElement>("#app")!;
+//const APP = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
 
@@ -176,8 +176,33 @@ for (const cell of NEIGHBORHOOD_CELLS) {
   }
 }
 
-const BUTTON = document.createElement("button");
-const BUTTON_TEXT = "Click me!";
-BUTTON.innerHTML = BUTTON_TEXT;
-BUTTON.addEventListener("click", () => alert("you clicked the button!"));
-APP.append(BUTTON);
+const controlPanel = document.querySelector<HTMLDivElement>("#controlPanel");
+// thank you to KeatonShawhan for this idea
+controlPanel?.addEventListener("click", (event) => {
+  const direction = (event.target as HTMLElement).id; //gets N,S,W,E
+  if (["north", "south", "west", "east"].includes(direction)) {
+    movePlayer(direction as "north" | "south" | "west" | "east");
+  }
+});
+
+function movePlayer(direction: string) {
+  let { lat, lng } = playerMarker.getLatLng();
+  switch (direction) {
+    case "north":
+      lat += TILE_DEGREES;
+      break;
+    case "south":
+      lat -= TILE_DEGREES;
+      break;
+    case "east":
+      lng += TILE_DEGREES;
+      break;
+    case "west":
+      lng -= TILE_DEGREES;
+      break;
+    default:
+      throw new Error("you shouldn't get here!\n");
+  }
+  playerMarker.setLatLng([lat, lng]);
+  map.panTo([lat, lng]);
+}
