@@ -4,16 +4,12 @@ import "leaflet/dist/leaflet.css";
 import "./style.css";
 import luck from "./luck.ts";
 import "./leafletWorkaround.ts";
+//import { Board } from "./board.ts";
 
 const APP_NAME = "Geocoin Carrier";
 const APP = document.querySelector<HTMLDivElement>("#app")!;
 
 document.title = APP_NAME;
-
-interface Cell {
-  readonly i: number;
-  readonly j: number;
-}
 
 interface Cache {
   coins: number;
@@ -45,6 +41,7 @@ const inventoryChanged = new CustomEvent("player-inventory-changed", {
 */
 
 const OAKES_CLASSROOM = leaflet.latLng(36.98949379578401, -122.06277128548504);
+//const MAP_ORIGIN = leaflet.latLng(0, 0);
 
 const GAMEPLAY_ZOOM_LEVEL = 19;
 const TILE_DEGREES = 1e-4;
@@ -81,7 +78,10 @@ function spawnCache(i: number, j: number) {
   const origin = OAKES_CLASSROOM;
   const bounds = leaflet.latLngBounds([
     [origin.lat + i * TILE_DEGREES, origin.lng + j * TILE_DEGREES],
-    [origin.lat + (i + 1) * TILE_DEGREES, origin.lng + (j + 1) * TILE_DEGREES],
+    [
+      origin.lat + (i + 1) * TILE_DEGREES,
+      origin.lng + (j + 1) * TILE_DEGREES,
+    ],
   ]);
 
   // Add a rectangle to the map to represent the cache
@@ -111,8 +111,9 @@ function spawnCache(i: number, j: number) {
       .addEventListener("click", () => {
         if (cache.cacheDetail.coins > 0) {
           cache.cacheDetail.coins--;
-          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-            .cacheDetail.coins.toString();
+          popupDiv.querySelector<HTMLSpanElement>(
+            "#value",
+          )!.innerHTML = cache.cacheDetail.coins.toString();
           playerPoints++;
           statusPanel.innerHTML = `${playerPoints} points accumulated`;
           cache.bindPopup();
@@ -126,8 +127,9 @@ function spawnCache(i: number, j: number) {
         if (playerPoints > 0) {
           playerPoints--;
           cache.cacheDetail.coins++;
-          popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-            .cacheDetail.coins.toString();
+          popupDiv.querySelector<HTMLSpanElement>(
+            "#value",
+          )!.innerHTML = cache.cacheDetail.coins.toString();
           statusPanel.innerHTML = `${playerPoints} points accumulated`;
         }
       });
