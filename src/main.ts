@@ -13,6 +13,7 @@ const APP_NAME = "Geocoin Carrier";
 document.title = APP_NAME;
 
 interface Cache {
+  cell: Cell;
   coins: Coin[];
 }
 
@@ -21,23 +22,47 @@ interface Coin {
   serial: number;
 }
 
-/*
-Interfaces, Functions, and Events for later
-
-function collect(coin: Coin, cell: Cell) {
-    if (!cell) { return; }
+interface Memento<T> {
+  toMemento(): T;
+  fromMemento(memento: T): void;
 }
 
-function deposit(coin: Coin, cell: Cell) {
-    if (!cell) { return; }
+class CacheMemory implements Memento<string> {
+  cache: Cache;
+
+  constructor(cache: Cache) {
+    this.cache = cache;
+  }
+
+  toMemento(): string {
+    return JSON.stringify(this.cache.coins);
+  }
+
+  fromMemento(memento: string): void {
+    this.cache.coins = JSON.parse(memento);
+  }
 }
 
-const updateCache = new CustomEvent("cache-updated");
+const mementos: { [key: string]: string } = {};
 
-const inventoryChanged = new CustomEvent("player-inventory-changed", {
-    detail: {item}
-})
-*/
+function saveCache() {
+  localCaches.forEach((cache) => {
+    const key = `${cache.cell.i}:${cache.cell.j}`;
+    const cacheToSave = new CacheMemory(cache);
+    mementos[key] = cacheToSave.toMemento();
+  });
+}
+
+function restoreCache() {
+  localCaches.forEach((cache) => {
+    const key = `${cache.cell.i}:${cache.cell.j}`;
+    const memento = mementos[key];
+    if (memento) {
+      const cacheToRestore = new CacheMemory(cache);
+      cacheToRestore.fromMemento(memento);
+    }
+  });
+}
 
 const STARTING_POINT = leaflet.latLng(36.98949379578401, -122.06277128548504);
 let playerLocation = STARTING_POINT;
@@ -84,27 +109,36 @@ function updateStatusPanel() {
   }
 }
 
-const localCaches: leaflet.rectangle[] = [];
+const localCaches: Cache[] = [];
 
-function spawnCache(cell: Cell) {
+function spawnCache(cell: Cell, initialized: boolean) {
   const bounds = GEO_BOARD.getCellBounds(cell);
   // Add a rectangle to the map to represent the cache
   const cache = leaflet.rectangle(bounds);
   cache.addTo(map);
-  localCaches.push(cache);
   // Handle interactions with the cache
   cache.bindPopup(() => {
-    // Each cache has a random point value, mutable by the player
-    const pointValue = Math.floor(
-      luck([cell.i, cell.j, "initialValue"].toString()) * 100,
-    );
+    let customCache: Cache = { cell: { i: cell.i, j: cell.j }, coins: [] };
+    if (!initialized) {
+      // Each cache has a random point value, mutable by the player
+      const pointValue = Math.floor(
+        luck([cell.i, cell.j, "initialValue"].toString()) * 100,
+      );
 
-    const customDetails: Cache = { coins: [] };
-    for (let i = 0; i < pointValue; i++) {
-      customDetails.coins.push({ cell: cell, serial: i });
+      for (let i = 0; i < pointValue; i++) {
+        customCache.coins.push({ cell: cell, serial: i });
+      }
+      localCaches.push(customCache);
+    } else {
+      const memento = mementos[`${cell.i}:${cell.j}`];
+      const detailExtraction = new CacheMemory({ cell: cell, coins: [] });
+      detailExtraction.fromMemento(memento);
+      customCache = {
+        cell: detailExtraction.cache.cell,
+        coins: detailExtraction.cache.coins,
+      };
     }
-
-    cache.cacheDetail = customDetails;
+    cache.cacheDetail = customCache;
     // The popup offers a description and button
     const popupDiv = document.createElement("div");
     const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
@@ -127,6 +161,14 @@ function spawnCache(cell: Cell) {
       popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
         .cacheDetail.coins.length.toString();
       coinAmount = cache.cacheDetail.coins.length;
+      console.log(cache.cacheDetail);
+      const cacheToUpdate = localCaches.find(
+        (c) =>
+          c.cell.i == cache.cacheDetail.cell.i &&
+          c.cell.j == cache.cacheDetail.cell.j,
+      );
+      cacheToUpdate!.coins = cache.cacheDetail.coins;
+
       if (coinAmount > 0) {
         topCoin = cache.cacheDetail.coins[coinAmount - 1];
         popupDiv.querySelector<HTMLSpanElement>(
@@ -172,7 +214,15 @@ function generateNeighborhood(point: leaflet.LatLng) {
   const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(point);
   for (const cell of NEIGHBORHOOD_CELLS) {
     if (luck([cell.i, cell.j].toString()) < CACHE_SPAWN_PROBABILITY) {
-      spawnCache(cell);
+      let initialized = false;
+      const cache = GEO_BOARD.getCellForPoint(point);
+      if (cache) {
+        const memento = mementos[`${cell.i}:${cell.j}`];
+        if (memento) {
+          initialized = true;
+        }
+      }
+      spawnCache(cell, initialized);
     }
   }
 }
@@ -188,7 +238,6 @@ controlPanel.addEventListener("click", (event) => {
 
 function movePlayer(direction: "north" | "south" | "west" | "east") {
   let { lat, lng } = playerMarker.getLatLng();
-  clearCaches();
   if (direction === "north") lat += TILE_DEGREES;
   if (direction === "south") lat -= TILE_DEGREES;
   if (direction === "east") lng += TILE_DEGREES;
@@ -217,6 +266,9 @@ document.addEventListener("player-moved", (event: Event) => {
   const customEvent = event as CustomEvent;
   const { lat, lng } = customEvent.detail;
   playerLocation = leaflet.latLng(lat, lng);
+  saveCache();
+  clearCaches();
   generateNeighborhood(playerLocation);
+  restoreCache();
   playerMarker.addTo(map);
 });
