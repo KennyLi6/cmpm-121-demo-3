@@ -84,14 +84,14 @@ function updateStatusPanel() {
   }
 }
 
-let caches: leaflet.rectangle[] = [];
+const localCaches: leaflet.rectangle[] = [];
 
 function spawnCache(cell: Cell) {
   const bounds = GEO_BOARD.getCellBounds(cell);
   // Add a rectangle to the map to represent the cache
   const cache = leaflet.rectangle(bounds);
   cache.addTo(map);
-  caches.push(cache);
+  localCaches.push(cache);
   // Handle interactions with the cache
   cache.bindPopup(() => {
     // Each cache has a random point value, mutable by the player
@@ -199,10 +199,11 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
 }
 
 function clearCaches() {
-  for (const cache of caches) {
-    map.removeLayer(cache);
-  }
-  caches = [];
+  map.eachLayer(function (layer: leaflet.layer) {
+    if (layer instanceof leaflet.Rectangle) {
+      map.removeLayer(layer);
+    }
+  });
 }
 
 function playerMoved(lat: number, lng: number) {
