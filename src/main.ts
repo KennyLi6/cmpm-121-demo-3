@@ -45,6 +45,7 @@ class CacheMemory implements Memento<string> {
 
 const mementos: { [key: string]: string } = {};
 
+// thank you to phoebila for these ideas
 function saveCache() {
   localCaches.forEach((cache) => {
     const key = `${cache.cell.i}:${cache.cell.j}`;
