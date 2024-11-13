@@ -242,7 +242,6 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
   if (direction === "south") lat -= TILE_DEGREES;
   if (direction === "east") lng += TILE_DEGREES;
   if (direction === "west") lng -= TILE_DEGREES;
-  map.panTo([lat, lng]);
   playerMoved(lat, lng);
 }
 
@@ -266,12 +265,25 @@ document.addEventListener("player-moved", (event: Event) => {
   const { lat, lng } = customEvent.detail;
   playerMarker.setLatLng([lat, lng]);
   playerLocation = leaflet.latLng(lat, lng);
+  map.panTo([lat, lng]);
   saveCache();
   clearCaches();
   generateNeighborhood(playerLocation);
   restoreCache();
   playerMarker.addTo(map);
+  localStorage.setItem("userLocation", JSON.stringify({ lat, lng }));
 });
+
+// thank you brace for this logic
+globalThis.onload = function () {
+  const storedLocation = localStorage.getItem("userLocation");
+  if (storedLocation) {
+    const { lat, lng } = JSON.parse(storedLocation);
+    playerMoved(lat, lng);
+  } else {
+    playerMoved(STARTING_POINT.lat, STARTING_POINT.lng);
+  }
+};
 
 // thank you to AKris0090 for these two ideas
 function onLocationFound(event: leaflet.LocationEvent) {
