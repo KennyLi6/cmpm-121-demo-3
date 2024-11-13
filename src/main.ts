@@ -141,11 +141,13 @@ function spawnCache(cell: Cell, initialized: boolean) {
         coins: detailExtraction.cache.coins,
       };
     }
+
     cache.cacheDetail = customCache;
     // The popup offers a description and button
     const popupDiv = document.createElement("div");
     const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
     const cacheLng = (cell.j * TILE_DEGREES).toFixed(4);
+    map.flyTo([cacheLat, cacheLng]);
     let coinAmount = cache.cacheDetail.coins.length;
     let topCoin = cache.cacheDetail.coins[coinAmount - 1];
     popupDiv.innerHTML = `
