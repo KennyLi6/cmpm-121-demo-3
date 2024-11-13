@@ -162,7 +162,6 @@ function spawnCache(cell: Cell, initialized: boolean) {
       popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
         .cacheDetail.coins.length.toString();
       coinAmount = cache.cacheDetail.coins.length;
-      console.log(cache.cacheDetail);
       const cacheToUpdate = localCaches.find(
         (c) =>
           c.cell.i == cache.cacheDetail.cell.i &&
@@ -243,7 +242,6 @@ function movePlayer(direction: "north" | "south" | "west" | "east") {
   if (direction === "south") lat -= TILE_DEGREES;
   if (direction === "east") lng += TILE_DEGREES;
   if (direction === "west") lng -= TILE_DEGREES;
-  playerMarker.setLatLng([lat, lng]);
   map.panTo([lat, lng]);
   playerMoved(lat, lng);
 }
@@ -266,6 +264,7 @@ function playerMoved(lat: number, lng: number) {
 document.addEventListener("player-moved", (event: Event) => {
   const customEvent = event as CustomEvent;
   const { lat, lng } = customEvent.detail;
+  playerMarker.setLatLng([lat, lng]);
   playerLocation = leaflet.latLng(lat, lng);
   saveCache();
   clearCaches();
@@ -273,3 +272,22 @@ document.addEventListener("player-moved", (event: Event) => {
   restoreCache();
   playerMarker.addTo(map);
 });
+
+// thank you to AKris0090 for these two ideas
+function onLocationFound(event: leaflet.LocationEvent) {
+  const { lat, lng } = event.latlng;
+  playerMoved(lat, lng);
+}
+
+function onLocationError(event: leaflet.LocationError) {
+  alert(event.message);
+}
+
+map.on("locationfound", onLocationFound);
+map.on("locationeroor", onLocationError);
+
+document.getElementById("sensor")!.addEventListener("click", toggleTracking);
+
+function toggleTracking() {
+  map.locate({ setView: true, watch: true });
+}
