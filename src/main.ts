@@ -43,7 +43,7 @@ class CacheMemory implements Memento<string> {
   }
 }
 
-const mementos: { [key: string]: string } = {};
+let mementos: { [key: string]: string } = {};
 
 // thank you to phoebila for these ideas
 function saveCache() {
@@ -52,6 +52,7 @@ function saveCache() {
     const cacheToSave = new CacheMemory(cache);
     mementos[key] = cacheToSave.toMemento();
   });
+  localStorage.setItem("mementos", JSON.stringify(mementos));
 }
 
 function restoreCache() {
@@ -94,7 +95,7 @@ const playerMarker = leaflet.marker(STARTING_POINT);
 playerMarker.bindTooltip("That's you!");
 playerMarker.addTo(map);
 
-const playerPoints: Coin[] = [];
+let playerPoints: Coin[] = [];
 const statusPanel = document.querySelector<HTMLDivElement>("#statusPanel")!; // element `statusPanel` is defined in index.html
 statusPanel.innerHTML = "No coins yet...";
 
@@ -108,6 +109,7 @@ function updateStatusPanel() {
       <br>${coin.cell.i}:${coin.cell.j}#${coin.serial}.
       `;
   }
+  localStorage.setItem("inventory", JSON.stringify(playerPoints));
 }
 
 const localCaches: Cache[] = [];
@@ -178,6 +180,7 @@ function spawnCache(cell: Cell, initialized: boolean) {
       } else {
         popupDiv.querySelector<HTMLSpanElement>("#topCoinText")!.innerHTML = ``;
       }
+      saveCache();
     }
 
     // Clicking the button decrements the cache's value and increments the player's points
@@ -208,7 +211,7 @@ function spawnCache(cell: Cell, initialized: boolean) {
 }
 
 const GEO_BOARD = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
-generateNeighborhood(STARTING_POINT);
+//generateNeighborhood(STARTING_POINT);
 
 function generateNeighborhood(point: leaflet.LatLng) {
   const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(point);
@@ -269,7 +272,6 @@ document.addEventListener("player-moved", (event: Event) => {
   playerLocation = leaflet.latLng(lat, lng);
   map.panTo([lat, lng]);
   localStorage.setItem("userLocation", JSON.stringify({ lat, lng }));
-  saveCache();
   clearCaches();
   generateNeighborhood(playerLocation);
   restoreCache();
@@ -291,9 +293,32 @@ globalThis.onload = function () {
   if (storedLocation) {
     const { lat, lng } = JSON.parse(storedLocation);
     playerLocation = leaflet.latLng(lat, lng);
+    const localMementos = localStorage.getItem("mementos");
+    if (localMementos) {
+      const parsedMementos = JSON.parse(localMementos);
+      if (Object.keys(parsedMementos).length > 0) {
+        mementos = parsedMementos;
+        Object.keys(mementos).forEach((key) => {
+          const coords = key.split(":");
+          const [lat, lng] = coords.map((numStr) => parseInt(numStr, 10));
+          const value = new CacheMemory({
+            cell: { i: lat, j: lng },
+            coins: [],
+          });
+          value.fromMemento(mementos[key]);
+          localCaches.push({
+            cell: { i: lat, j: lng },
+            coins: value.cache.coins,
+          });
+        });
+      }
+    }
+    const inventory = localStorage.getItem("inventory");
+    if (inventory) {
+      playerPoints = JSON.parse(inventory);
+      updateStatusPanel();
+    }
     playerMoved(lat, lng);
-  } else {
-    playerMoved(STARTING_POINT.lat, STARTING_POINT.lng);
   }
 };
 
@@ -330,6 +355,36 @@ function toggleDirectionButtons() {
     const b = button as HTMLButtonElement;
     if (["north", "south", "west", "east"].includes(b.id)) {
       b.disabled = !b.disabled;
+    }
+  });
+}
+
+const RESET_PROMPT = "I am sure!";
+
+document.getElementById("reset")!.addEventListener("click", resetGame);
+
+function resetGame() {
+  const input = prompt(
+    `Are you sure you want to reset the game? Please type "${RESET_PROMPT}"`,
+  );
+  if (typeof input == typeof "") {
+    localCaches.length = 0;
+    mementos = {};
+    localStorage.setItem("mementos", JSON.stringify({}));
+    playerPoints = [];
+    localStorage.setItem("inventory", JSON.stringify([]));
+    playerLocation = STARTING_POINT;
+    updateStatusPanel();
+    clearCaches();
+    clearPolyline();
+    playerMoved(STARTING_POINT.lat, STARTING_POINT.lng);
+  }
+}
+
+function clearPolyline() {
+  map.eachLayer(function (layer: leaflet.layer) {
+    if (layer instanceof leaflet.Polyline) {
+      map.removeLayer(layer);
     }
   });
 }
