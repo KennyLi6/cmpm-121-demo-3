@@ -370,7 +370,7 @@ function resetGame() {
   const input = prompt(
     `Are you sure you want to reset the game? Please type "${RESET_PROMPT}"`,
   );
-  if (typeof input == typeof "") {
+  if (input == RESET_PROMPT) {
     localCaches.length = 0;
     mementos = {};
     localStorage.setItem("mementos", JSON.stringify({}));
