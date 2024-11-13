@@ -288,6 +288,24 @@ map.on("locationeroor", onLocationError);
 
 document.getElementById("sensor")!.addEventListener("click", toggleTracking);
 
+let playerTracking: boolean = false;
+
 function toggleTracking() {
-  map.locate({ setView: true, watch: true });
+  playerTracking = !playerTracking;
+  if (playerTracking) {
+    map.locate({ setView: true, watch: playerTracking });
+  } else {
+    map.stopLocate();
+  }
+  toggleDirectionButtons();
+}
+
+function toggleDirectionButtons() {
+  const buttons = document.querySelectorAll("#controlPanel button");
+  buttons.forEach(function (button) {
+    const b = button as HTMLButtonElement;
+    if (["north", "south", "west", "east"].includes(b.id)) {
+      b.disabled = !b.disabled;
+    }
+  });
 }
