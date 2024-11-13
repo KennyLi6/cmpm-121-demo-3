@@ -263,15 +263,26 @@ function playerMoved(lat: number, lng: number) {
 document.addEventListener("player-moved", (event: Event) => {
   const customEvent = event as CustomEvent;
   const { lat, lng } = customEvent.detail;
+  const previousLat = playerLocation.lat;
+  const previousLng = playerLocation.lng;
   playerMarker.setLatLng([lat, lng]);
   playerLocation = leaflet.latLng(lat, lng);
   map.panTo([lat, lng]);
+  localStorage.setItem("userLocation", JSON.stringify({ lat, lng }));
   saveCache();
   clearCaches();
   generateNeighborhood(playerLocation);
   restoreCache();
   playerMarker.addTo(map);
-  localStorage.setItem("userLocation", JSON.stringify({ lat, lng }));
+  leaflet
+    .polyline(
+      [
+        [previousLat, previousLng],
+        [lat, lng],
+      ],
+      { color: "blue" },
+    )
+    .addTo(map);
 });
 
 // thank you brace for this logic
@@ -279,6 +290,7 @@ globalThis.onload = function () {
   const storedLocation = localStorage.getItem("userLocation");
   if (storedLocation) {
     const { lat, lng } = JSON.parse(storedLocation);
+    playerLocation = leaflet.latLng(lat, lng);
     playerMoved(lat, lng);
   } else {
     playerMoved(STARTING_POINT.lat, STARTING_POINT.lng);
