@@ -147,6 +147,7 @@ function spawnCache(cell: Cell, initialized: boolean) {
     const popupDiv = document.createElement("div");
     const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
     const cacheLng = (cell.j * TILE_DEGREES).toFixed(4);
+    // learned about flyTo method from brace
     map.flyTo([cacheLat, cacheLng]);
     let coinAmount = cache.cacheDetail.coins.length;
     let topCoin = cache.cacheDetail.coins[coinAmount - 1];
