@@ -115,106 +115,133 @@ function updateStatusPanel() {
 const localCaches: Cache[] = [];
 
 function spawnCache(cell: Cell, initialized: boolean) {
-  const bounds = GEO_BOARD.getCellBounds(cell);
-  // Add a rectangle to the map to represent the cache
-  const cache = leaflet.rectangle(bounds);
-  cache.addTo(map);
+  const cacheVisual = createCacheRectangle(cell);
+  const cache = initializeCache(cell, initialized);
+  const popupDiv = createCachePopupContent(cache);
   // Handle interactions with the cache
-  cache.bindPopup(() => {
-    let customCache: Cache = { cell: { i: cell.i, j: cell.j }, coins: [] };
-    if (!initialized) {
-      // Each cache has a random point value, mutable by the player
-      const pointValue = Math.floor(
-        luck([cell.i, cell.j, "initialValue"].toString()) * 100,
-      );
-
-      for (let i = 0; i < pointValue; i++) {
-        customCache.coins.push({ cell: cell, serial: i });
-      }
-      localCaches.push(customCache);
-    } else {
-      const memento = mementos[`${cell.i}:${cell.j}`];
-      const detailExtraction = new CacheMemory({ cell: cell, coins: [] });
-      detailExtraction.fromMemento(memento);
-      customCache = {
-        cell: detailExtraction.cache.cell,
-        coins: detailExtraction.cache.coins,
-      };
-    }
-
-    cache.cacheDetail = customCache;
-    // The popup offers a description and button
-    const popupDiv = document.createElement("div");
-    const cacheLat = (cell.i * TILE_DEGREES).toFixed(4);
-    const cacheLng = (cell.j * TILE_DEGREES).toFixed(4);
-    // learned about flyTo method from brace
-    map.flyTo([cacheLat, cacheLng]);
-    let coinAmount = cache.cacheDetail.coins.length;
-    let topCoin = cache.cacheDetail.coins[coinAmount - 1];
-    popupDiv.innerHTML = `
-                  <div>
-                    There is a cache here at "${cacheLat},${cacheLng}". It has <span id="value">${coinAmount}</span> coin(s).
-                    <br><span id="topCoinText">${
-      coinAmount > 0
-        ? `You can take coin ${topCoin.cell.i}:${topCoin.cell.j}#${topCoin.serial}.`
-        : ``
-    }</span>
-                  </div>
-                  <button id="collect">collect</button>
-                  <button id="deposit">deposit</button>`;
-
-    function updateCache() {
-      popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = cache
-        .cacheDetail.coins.length.toString();
-      coinAmount = cache.cacheDetail.coins.length;
-      const cacheToUpdate = localCaches.find(
-        (c) =>
-          c.cell.i == cache.cacheDetail.cell.i &&
-          c.cell.j == cache.cacheDetail.cell.j,
-      );
-      cacheToUpdate!.coins = cache.cacheDetail.coins;
-
-      if (coinAmount > 0) {
-        topCoin = cache.cacheDetail.coins[coinAmount - 1];
-        popupDiv.querySelector<HTMLSpanElement>(
-          "#topCoinText",
-        )!.innerHTML =
-          `You can take coin ${topCoin.cell.i}:${topCoin.cell.j}#${topCoin.serial}.`;
-      } else {
-        popupDiv.querySelector<HTMLSpanElement>("#topCoinText")!.innerHTML = ``;
-      }
-      saveCache();
-    }
-
-    // Clicking the button decrements the cache's value and increments the player's points
-    popupDiv
-      .querySelector<HTMLButtonElement>("#collect")!
-      .addEventListener("click", () => {
-        if (cache.cacheDetail.coins.length > 0) {
-          playerPoints.push(cache.cacheDetail.coins.pop());
-          updateCache();
-          updateStatusPanel();
-          cache.bindPopup();
-        }
-      });
-
-    // Clicking the deposit button increments cache's value and decrements the player's points
-    popupDiv
-      .querySelector<HTMLButtonElement>("#deposit")!
-      .addEventListener("click", () => {
-        if (playerPoints.length > 0) {
-          cache.cacheDetail.coins.push(playerPoints.pop());
-          updateCache();
-          updateStatusPanel();
-        }
-      });
-
+  cacheVisual.bindPopup(() => {
+    const updateFunc = () => updateCacheUI(cache, popupDiv);
+    bindPopupEvents(popupDiv, cache, updateFunc);
     return popupDiv;
   });
 }
 
+function createCacheRectangle(cell: Cell): leaflet.Rectangle {
+  const bounds = GEO_BOARD.getCellBounds(cell);
+  // Add a rectangle to the map to represent the cache
+  const cache = leaflet.rectangle(bounds);
+  cache.addTo(map);
+  return cache;
+}
+
+function initializeCache(cell: Cell, initialized: boolean): Cache {
+  let cache: Cache = { cell: { i: cell.i, j: cell.j }, coins: [] };
+  if (!initialized) {
+    // Each cache has a random point value, mutable by the player
+    const pointValue = Math.floor(
+      luck([cell.i, cell.j, "initialValue"].toString()) * 100,
+    );
+
+    for (let i = 0; i < pointValue; i++) {
+      cache.coins.push({ cell: cell, serial: i });
+    }
+    localCaches.push(cache);
+  } else {
+    const memento = mementos[`${cell.i}:${cell.j}`];
+    const detailExtraction = new CacheMemory({ cell: cell, coins: [] });
+    detailExtraction.fromMemento(memento);
+    cache = detailExtraction.cache;
+  }
+  return cache;
+}
+
+function createCachePopupContent(cache: Cache): HTMLDivElement {
+  // The popup offers a description and button
+  const popupDiv = document.createElement("div");
+  const cacheLat = (cache.cell.i * TILE_DEGREES).toFixed(4);
+  const cacheLng = (cache.cell.j * TILE_DEGREES).toFixed(4);
+  const coinCount = cache.coins.length;
+  popupDiv.innerHTML = `
+                  <div>
+                    There is a cache here at "${cacheLat},${cacheLng}". It has <span id="value">${coinCount}</span> coin(s).
+                    <br><span id="topCoinText">${
+    coinCount > 0
+      ? `You can take coin ${cache.coins[coinCount - 1].cell.i}:${
+        cache.coins[coinCount - 1].cell.j
+      }#${cache.coins[coinCount - 1].serial}.`
+      : `No coins available.`
+  }</span>
+                  </div>
+                  <button id="collect">Collect</button>
+                  <button id="deposit">Deposit</button>`;
+
+  return popupDiv;
+}
+
+function bindPopupEvents(
+  popupDiv: HTMLDivElement,
+  cache: Cache,
+  updateCacheFunc: () => void,
+) {
+  // Clicking the button decrements the cache's value and increments the player's points
+  popupDiv
+    .querySelector<HTMLButtonElement>("#collect")!
+    .addEventListener("click", () => {
+      if (cache.coins.length > 0) {
+        const coin = cache.coins.pop();
+        playerPoints.push(coin!);
+        updateCacheFunc();
+        updateStatusPanel();
+      }
+    });
+
+  // Clicking the deposit button increments cache's value and decrements the player's points
+  popupDiv
+    .querySelector<HTMLButtonElement>("#deposit")!
+    .addEventListener("click", () => {
+      if (playerPoints.length > 0) {
+        const coin = playerPoints.pop();
+        cache.coins.push(coin!);
+        updateCacheFunc();
+        updateStatusPanel();
+      }
+    });
+}
+
+function updateCacheUI(cache: Cache, popupDiv: HTMLDivElement) {
+  const coinCount = cache.coins.length;
+  popupDiv.querySelector<HTMLSpanElement>("#value")!.innerHTML = coinCount
+    .toString();
+  if (coinCount > 0) {
+    const topCoin = cache.coins[coinCount - 1];
+    console.log(topCoin);
+    if (topCoin && typeof topCoin.serial === "number" && topCoin.serial >= 0) {
+      popupDiv.querySelector<HTMLSpanElement>(
+        "#topCoinText",
+      )!.innerHTML =
+        `You can take coin ${topCoin.cell.i}:${topCoin.cell.j}#${topCoin.serial}.`;
+    } else {
+      console.error("Invalid coin data detected:", topCoin);
+      popupDiv.querySelector<HTMLSpanElement>("#topCoinText")!.innerHTML =
+        "Error: Coin data is corrupted.";
+    }
+  } else {
+    popupDiv.querySelector<HTMLSpanElement>("#topCoinText")!.innerHTML = ``;
+  }
+
+  const index = localCaches.findIndex(
+    (c) => c.cell.i == cache.cell.i && c.cell.j == cache.cell.j,
+  );
+  if (index !== -1) {
+    localCaches[index] = cache;
+  } else {
+    console.warn("Cache not found in global state:", cache);
+  }
+
+  saveCache();
+}
+
 const GEO_BOARD = new Board(TILE_DEGREES, NEIGHBORHOOD_SIZE);
-//generateNeighborhood(STARTING_POINT);
 
 function generateNeighborhood(point: leaflet.LatLng) {
   const NEIGHBORHOOD_CELLS: Cell[] = GEO_BOARD.getCellsNearPoint(point);
